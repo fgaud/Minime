@@ -1,0 +1,4 @@
+* Use the latest version of bandwidth
+* Compute latencies in addition to throughput
+* Support more memory access pattern (e.g., sharing between threads)
+* Fix compilation on 32-bit architectures
