@@ -182,7 +182,6 @@ static void* thread_loop(void* pdata){
       gettimeofday(&stop_time, NULL);
    }
 
-   gettimeofday(&stop_time, NULL);
    rdtscll(stop_time_cycles);
 
    duration_cycles[tn->thread_no] = stop_time_cycles - start_time_cycles;
