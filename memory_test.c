@@ -236,7 +236,7 @@ static void* thread_loop(void* pdata){
 void usage(char * app_name) {
    unsigned long nb_plugins = sizeof(plugins) / sizeof(memory_bench_plugin_t);
 
-   fprintf(stderr, "Usage: %s -t <plugin number> -c <list of cores> [-m <memory node>] [ -l <size>[K|M|G] | -g <size>[K|M|G] ] [-T <time in cycles>]\n", app_name);
+   fprintf(stderr, "Usage: %s -t <plugin number> -c <list of cores> [-m <memory node>] [ -l <size>[K|M|G] | -g <size>[K|M|G] ] [-T <time in seconds>]\n", app_name);
    fprintf(stderr, "\t-t: plugin number. Available plugins:\n");
    int i = 0;
    for (i = 0; i < nb_plugins; i++) {
