@@ -41,7 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "memory_test.h"
 
 memory_bench_plugin_t plugins[] = {
-      { "throughput", NULL, bench_throughtput },
+      { "throughput", NULL, bench_throughput },
       { "sequential_read", bench_seq_init, bench_seq_read },
       { "random_read", bench_rand_read_init, bench_rand_read },
 };

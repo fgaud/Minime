@@ -27,7 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern long WriterSSE2 (void *ptr, unsigned long loops, unsigned long size, unsigned long value);
 
 #ifdef __x86_64__
-uint64_t bench_throughtput(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no){
+uint64_t bench_throughput(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no){
    return memory_size*WriterSSE2 (memory_to_access, time, memory_size, 0x1234567689abcdef);
 }
 #else
