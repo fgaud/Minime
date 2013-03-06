@@ -397,7 +397,7 @@ int main(int argc, char **argv){
       nodes += 1 << node_on_which_to_alloc;
 
       printf("Setting the BIND memory policy (mask = %lx)\n", nodes);
-      assert(set_mempolicy(MPOL_BIND, &nodes, sizeof(long unsigned int)) == 0);
+      assert(set_mempolicy(MPOL_BIND, &nodes, 8*sizeof(long unsigned int)) == 0);
    }
 
    assert(pthread_mutex_init(&mutex, NULL) == 0);
