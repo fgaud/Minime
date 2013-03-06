@@ -52,23 +52,20 @@ int choosed_plugin = -1;
 #define DEFAULT_MEMORY_BENCH_SIZE_TO_BENCH      (64*1024*1024) // In bytes
 
 unsigned int nthreads;
-unsigned int ndies;
 uint64_t bench_time = DEFAULT_BENCH_TIME;
+unsigned int nnodes;
 
-int die_on_which_to_alloc = -1;        /* Where to alloc memory? -1 =local */
+int node_on_which_to_alloc = -1;        /* Where to alloc memory? -1 =local */
 
 uint64_t* nb_bytes_processed;     /* Number of bytes actually processed by a thread */
-
-unsigned int nb_dies = 1;
+uint64_t* duration_cycles;        /* Time needed to process data in cycles, one per thread */
 
 pthread_mutex_t mutex;
 pthread_cond_t go_to_work;
 volatile unsigned int rdv_value = 0;
 volatile unsigned int spin_rdv_value = 0;
 
-struct timeval global_start_time;
 uint64_t memory_size = 0;
-
 
 unsigned long time_diff(struct timeval* start, struct timeval* stop){
    unsigned long sec_res = stop->tv_sec - start->tv_sec;
@@ -153,7 +150,9 @@ void set_affinity(int tid, int core_id) {
 
 static void* thread_loop(void* pdata){
    struct thread_data *tn = pdata;
-   struct timeval global_stop_time, stop_time, start_time;
+   
+   struct timeval stop_time, start_time;
+   uint64_t start_time_cycles, stop_time_cycles;
 
    /** Set thread affinity **/
    int tid = gettid();
@@ -169,17 +168,12 @@ static void* thread_loop(void* pdata){
 
    rdv(tn->thread_no);
 
-   if(tn->thread_no == 0){
-      gettimeofday(&global_start_time, NULL);
-   }
    gettimeofday(&start_time, NULL);
-
+   rdtscll(start_time_cycles);
 
    if(tn->do_work) {
       uint64_t bytes = plugins[choosed_plugin].bench_fun(memory_to_access, memory_size, bench_time, tn->thread_no);
       nb_bytes_processed[tn->thread_no] = bytes;
-      //For some reason the following line segfaults.
-      //nb_bytes_processed[tn->thread_no] = plugins[choosed_plugin].bench_fun(memory_to_access, memory_size, bench_time, tn->thread_no);
 
       gettimeofday(&stop_time, NULL);
       spin_rdv(tn->thread_no);
@@ -187,41 +181,56 @@ static void* thread_loop(void* pdata){
       spin_rdv(tn->thread_no);
       gettimeofday(&stop_time, NULL);
    }
-   rdv(tn->thread_no);
 
-   unsigned long length = time_diff(&start_time, &stop_time);
+   gettimeofday(&stop_time, NULL);
+   rdtscll(stop_time_cycles);
+
+   duration_cycles[tn->thread_no] = stop_time_cycles - start_time_cycles;
+   spin_rdv(tn->thread_no);
+
 
    if(tn->thread_no == 0){
-      gettimeofday(&global_stop_time, NULL);
-
-      unsigned long global_length = time_diff(&global_start_time, &global_stop_time);
+      uint64_t sum_duration_cycles = 0;
+      unsigned long global_length;
+      struct timeval global_stop_time;
       uint64_t total_read = 0;
       int i;
+
+      gettimeofday(&global_stop_time, NULL);
+      global_length = time_diff(&start_time, &global_stop_time);
+
       for(i = 0; i < nthreads; i++) {
          total_read += nb_bytes_processed[i];
+         sum_duration_cycles += duration_cycles[i];
       }
+
       printf("\n");
       printf("[GLOBAL] total bytes processed: %llu\n", (long long unsigned) total_read);
       printf("[GLOBAL] test length: %.2f s (%lu us)\n", (double) global_length/1000000., global_length);
       printf("[GLOBAL] throughput: %.2f MB/s\n", ((double) total_read/1024./1024.)/ ((double) global_length/1000000.));
+      printf("[GLOBAL] Average latency: %lu cycles\n", (long unsigned) (sum_duration_cycles / (total_read / sizeof(uint64_t))));
    }
 
    while(rdv_value != tn->thread_no);
 
    if(tn->do_work) {
-      printf("\t[CORE%lu] throughput: %.2f MB/s during %.2fs\n", tn->assigned_core, ((double) nb_bytes_processed[tn->thread_no]/1024./1024.)/ ((double) length/1000000.), ((double)length)/1000000.);
-   } else {
-      printf("\t* core %lu: nothing done during %lu us\n",
-            tn->assigned_core,
-            length
+      unsigned long length = time_diff(&start_time, &stop_time);
+
+      printf("\t[CORE%lu] throughput: %.2f MB/s, average latency: %ld cycles, during %.2fs\n", 
+               tn->assigned_core, 
+               ((double) nb_bytes_processed[tn->thread_no]/1024./1024.)/ ((double) length/1000000.),
+               (unsigned long) (duration_cycles[tn->thread_no]) / (nb_bytes_processed[tn->thread_no] / sizeof(uint64_t)),
+               (((double) length)/1000000.)
             );
+   } else {
+      printf("\t* core %lu: spinning\n", tn->assigned_core);
    }
 
 
    // Last rendez-vous
    rdv(tn->thread_no);
 
-   //free(pdata);
+   free(pdata);
    return NULL;
 }
 
@@ -265,7 +274,7 @@ static uint64_t parse_size (char * size) {
 
 int main(int argc, char **argv){
 
-   ndies = numa_num_configured_nodes();
+   nnodes = numa_num_configured_nodes();
    int ncores = get_nprocs();
 
    int current_buf_size = ncores;
@@ -303,9 +312,9 @@ int main(int argc, char **argv){
             }
             break;
          case 'm':
-            die_on_which_to_alloc = atoi(optarg);
-            if(die_on_which_to_alloc < -1 || die_on_which_to_alloc >= (int) ndies){
-               die("%d is not a valid memory allocation policy (max die = %d || -1)", die_on_which_to_alloc, ndies);
+            node_on_which_to_alloc = atoi(optarg);
+            if(node_on_which_to_alloc < -1 || node_on_which_to_alloc >= (int) nnodes){
+               die("%d is not a valid memory allocation policy (max node = %d || -1)", node_on_which_to_alloc, nnodes -1);
             }
             break;
          case 't':
@@ -365,7 +374,7 @@ int main(int argc, char **argv){
 
    printf("Bench parameters\n");
    printf("\t* Required %d threads\n", nthreads);
-   printf("\t* Memory allocation policy: %d (%s)\n", die_on_which_to_alloc, (die_on_which_to_alloc == -1) ? "Local" : "On die");
+   printf("\t* Memory allocation policy: %d (%s)\n", node_on_which_to_alloc, (node_on_which_to_alloc == -1) ? "Local" : "On node");
    printf("\t* Memory size to bench: %llu bytes\n", (unsigned long long) memory_size);
    printf("\t* Benchmark time: %lus\n", (unsigned long)bench_time);
 
@@ -374,18 +383,19 @@ int main(int argc, char **argv){
 
    /** Allocation stuff **/
    nb_bytes_processed = calloc(nthreads, sizeof(uint64_t));
+   duration_cycles = calloc(nthreads, sizeof(uint64_t));
    pthread_t * threads = malloc(nthreads * sizeof(pthread_t));
    assert(nb_bytes_processed);
    assert(threads);
 
    /** Seting the memory policy **/
-   if(die_on_which_to_alloc == -1) {
+   if(node_on_which_to_alloc == -1) {
       printf("Setting the local memory policy\n");
       assert(set_mempolicy(MPOL_PREFERRED, NULL, 0) == 0);
    }
    else {
       long unsigned int nodes = 0;
-      nodes += 1 << die_on_which_to_alloc;
+      nodes += 1 << node_on_which_to_alloc;
 
       printf("Setting the BIND memory policy (mask = %lx)\n", nodes);
       assert(set_mempolicy(MPOL_BIND, &nodes, sizeof(long unsigned int)) == 0);
@@ -394,7 +404,7 @@ int main(int argc, char **argv){
    assert(pthread_mutex_init(&mutex, NULL) == 0);
    assert(pthread_cond_init(&go_to_work, NULL) == 0);
 
-   int* dies_assigned = calloc(nb_dies, sizeof(int));
+   int* nodes_assigned = calloc(nnodes, sizeof(int));
 
    /* 1. Create a thread for each core specified on the command line */
    struct thread_data * pdata = malloc(sizeof(struct thread_data));
@@ -406,7 +416,7 @@ int main(int argc, char **argv){
       pdata->thread_no = i;
       pdata->do_work = 1;
 
-      dies_assigned[numa_node_of_cpu(cores[i])] = 1;
+      nodes_assigned[numa_node_of_cpu(cores[i])] = 1;
 
       assert(pthread_create(&threads[i], NULL, thread_loop, (void*)pdata) == 0);
       pdata = malloc(sizeof(struct thread_data));
@@ -415,8 +425,8 @@ int main(int argc, char **argv){
 
    /* 2. Create a thread on each die which currently has no thread (idle threads: do_work == 0) */
    int fake_thread_no = nthreads;
-   for (i = 0; fake_loop && i < ndies; i++) {
-      if (!dies_assigned[i]) {
+   for (i = 0; fake_loop && i < nnodes; i++) {
+      if (!nodes_assigned[i]) {
          struct bitmask * bm = numa_allocate_cpumask();
          numa_node_to_cpus(i, bm);
          int core = -1;
