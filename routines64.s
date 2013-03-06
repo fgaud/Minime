@@ -43,7 +43,16 @@ global	WriterSSE2
 WriterSSE2:
 	mov	r11, rdi
 	add	r11, rdx	; r11 points to end of area.
+   xor   r13,r13
 	;movq	xmm0, rcx
+
+   push rax
+   push rdx
+
+   rdtsc  
+   shl rdx, 32
+   or rdx, rax
+   mov r12, rdx
 
 w_outer2:
 	mov	r10, rdi
@@ -63,6 +72,21 @@ w_inner2:
 	cmp	r10, r11
 	jb	w_inner2
 
-	dec	rsi
-	jnz	w_outer2
+   inc r13
+
+   rdtsc
+   shl rdx, 32
+   or rdx, rax
+   sub rdx, r12
+
+   cmp rdx, rsi
+   jb w_outer2
+
+	;dec	rsi
+	;jnz	w_outer2
+
+   pop rdx
+   pop rax
+
+   mov rax, r13
 	ret

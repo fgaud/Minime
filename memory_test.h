@@ -23,17 +23,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "plugin_sequential_read.h"
 #include "plugin_random_read.h"
 
-uint64_t bench_memory(uint64_t* memory_to_access, uint64_t memory_size, uint32_t nb_iterations, uint32_t thread_no);
+uint64_t bench_memory(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no);
 void stride_write_buf(uint64_t *buf, uint64_t size);
 
-typedef uint64_t (*bench_memory_fun_t)(uint64_t*, uint64_t, uint32_t, uint32_t);
+typedef uint64_t (*bench_memory_fun_t)(uint64_t*, uint64_t, uint64_t, uint32_t);
 typedef void (*init_memory_fun_t)(uint64_t*, uint64_t);
 
 typedef struct {
       const char * name;
       init_memory_fun_t init_fun;
       bench_memory_fun_t bench_fun;
-      uint32_t nb_iterations;
 } memory_bench_plugin_t;
 
 #define die(msg, args...) \

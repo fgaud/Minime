@@ -26,10 +26,12 @@ void bench_seq_init(uint64_t *memory_to_access, uint64_t memory_size) {
    }
 }
 
-__attribute__((optimize("O0")))   uint64_t bench_seq_read(uint64_t* memory_to_access, uint64_t memory_size, uint32_t nb_iterations, uint32_t thread_no) {
-   int i, j, fake = 0;
+__attribute__((optimize("O0")))   uint64_t bench_seq_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
+   int j, fake = 0;
+   uint64_t start, current, nb_iterations = 0;
+   rdtscll(start);
 
-   for (i = 0; i < nb_iterations; i++) {
+   while(1) {
       for (j = 0; j < (memory_size / sizeof(*memory_to_access)); j += 8) {
          fake += memory_to_access[j];
          fake += memory_to_access[j + 1];
@@ -40,6 +42,11 @@ __attribute__((optimize("O0")))   uint64_t bench_seq_read(uint64_t* memory_to_ac
          fake += memory_to_access[j + 6];
          fake += memory_to_access[j + 7];
       }
+
+      nb_iterations++;
+      rdtscll(current);
+      if(current - start >= time)
+         break;
    }
 
    return memory_size * nb_iterations;

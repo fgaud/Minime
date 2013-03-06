@@ -41,17 +41,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "memory_test.h"
 
 memory_bench_plugin_t plugins[] = {
-      { "throughput", NULL, bench_throughtput, 500 },
-      { "sequential_read", bench_seq_init, bench_seq_read, 500 },
-      { "random_read", bench_rand_read_init, bench_rand_read, 50 },
+      { "throughput", NULL, bench_throughtput },
+      { "sequential_read", bench_seq_init, bench_seq_read },
+      { "random_read", bench_rand_read_init, bench_rand_read },
 };
 
 int choosed_plugin = -1;
 
+#define DEFAULT_BENCH_TIME (10LL) // In s
 #define DEFAULT_MEMORY_BENCH_SIZE_TO_BENCH      (64*1024*1024) // In bytes
 
 unsigned int nthreads;
 unsigned int ndies;
+uint64_t bench_time = DEFAULT_BENCH_TIME;
 
 int die_on_which_to_alloc = -1;        /* Where to alloc memory? -1 =local */
 
@@ -73,6 +75,32 @@ unsigned long time_diff(struct timeval* start, struct timeval* stop){
    unsigned long usec_res = stop->tv_usec - start->tv_usec;
 
    return 1000000*sec_res + usec_res;
+}
+
+uint64_t get_cpu_freq(void) {                                                                                                                                                  
+   FILE *fd;
+   uint64_t freq = 0;
+   float freqf = 0;
+   char *line = NULL;
+   size_t len = 0;
+
+   fd = fopen("/proc/cpuinfo", "r");
+   if (!fd) {
+      fprintf(stderr, "failed to get cpu frequency\n");
+      perror(NULL);
+      return freq;
+   }   
+
+   while (getline(&line, &len, fd) != EOF) {
+      if (sscanf(line, "cpu MHz\t: %f", &freqf) == 1) {
+         freqf = freqf * 1000000UL;
+         freq = (uint64_t) freqf;
+         break;
+      }   
+   }   
+
+   fclose(fd);
+   return freq;
 }
 
 static void rdv(unsigned long thread_no){
@@ -148,7 +176,10 @@ static void* thread_loop(void* pdata){
 
 
    if(tn->do_work) {
-      nb_bytes_processed[tn->thread_no] = plugins[choosed_plugin].bench_fun(memory_to_access, memory_size, plugins[choosed_plugin].nb_iterations, tn->thread_no);
+      uint64_t bytes = plugins[choosed_plugin].bench_fun(memory_to_access, memory_size, bench_time, tn->thread_no);
+      nb_bytes_processed[tn->thread_no] = bytes;
+      //For some reason the following line segfaults.
+      //nb_bytes_processed[tn->thread_no] = plugins[choosed_plugin].bench_fun(memory_to_access, memory_size, bench_time, tn->thread_no);
 
       gettimeofday(&stop_time, NULL);
       spin_rdv(tn->thread_no);
@@ -178,7 +209,7 @@ static void* thread_loop(void* pdata){
    while(rdv_value != tn->thread_no);
 
    if(tn->do_work) {
-      printf("\t[CORE%lu] throughput: %.2f MB/s\n", tn->assigned_core, ((double) nb_bytes_processed[tn->thread_no]/1024./1024.)/ ((double) length/1000000.));
+      printf("\t[CORE%lu] throughput: %.2f MB/s during %.2fs\n", tn->assigned_core, ((double) nb_bytes_processed[tn->thread_no]/1024./1024.)/ ((double) length/1000000.), ((double)length)/1000000.);
    } else {
       printf("\t* core %lu: nothing done during %lu us\n",
             tn->assigned_core,
@@ -197,7 +228,7 @@ static void* thread_loop(void* pdata){
 void usage(char * app_name) {
    unsigned long nb_plugins = sizeof(plugins) / sizeof(memory_bench_plugin_t);
 
-   fprintf(stderr, "Usage: %s -t <plugin number> -c <list of cores> [-m <memory node>] [ -l <size>[K|M|G] | -g <size>[K|M|G] ]\n", app_name);
+   fprintf(stderr, "Usage: %s -t <plugin number> -c <list of cores> [-m <memory node>] [ -l <size>[K|M|G] | -g <size>[K|M|G] ] [-T <time in cycles>]\n", app_name);
    fprintf(stderr, "\t-t: plugin number. Available plugins:\n");
    int i = 0;
    for (i = 0; i < nb_plugins; i++) {
@@ -209,7 +240,7 @@ void usage(char * app_name) {
    fprintf(stderr, "\t-f: run a spinloop on the first core of unused nodes\n");
    fprintf(stderr, "\t-l: memory size to benchmark (per thread)\n");
    fprintf(stderr, "\t-g: memory size to benchmark (total)\n");
-   fprintf(stderr, "\t-i: specify manually the number of iterations\n");
+   fprintf(stderr, "\t-T: specify manually the benchmark duration (in ms)\n");
    fprintf(stderr, "\t-h: display usage\n");
    exit(EXIT_FAILURE);
 }
@@ -248,9 +279,8 @@ int main(int argc, char **argv){
 
    uint64_t total_memory_to_alloc = 0;
    uint64_t per_thread_memory_to_alloc = 0;
-   uint32_t niterations = 0;
 
-   while ((c = getopt(argc, argv, "fhc:m:t:g:l:i:")) != -1) {
+   while ((c = getopt(argc, argv, "fhc:m:t:g:l:T:")) != -1) {
       char delims[] = ",";
       char * result = NULL;
 
@@ -291,8 +321,8 @@ int main(int argc, char **argv){
          case 'l':
             per_thread_memory_to_alloc = parse_size(optarg);
             break;
-         case 'i':
-            niterations = atoi(optarg);
+         case 'T':
+            bench_time = atoll(optarg);
             break;
          case 'f':
             fake_loop = 1;
@@ -333,16 +363,14 @@ int main(int argc, char **argv){
       memory_size = DEFAULT_MEMORY_BENCH_SIZE_TO_BENCH;
    }
 
-   if(niterations) {
-      plugins[choosed_plugin].nb_iterations = niterations;
-   }
-
-
    printf("Bench parameters\n");
    printf("\t* Required %d threads\n", nthreads);
    printf("\t* Memory allocation policy: %d (%s)\n", die_on_which_to_alloc, (die_on_which_to_alloc == -1) ? "Local" : "On die");
    printf("\t* Memory size to bench: %llu bytes\n", (unsigned long long) memory_size);
-   printf("\t* Number of iterations: %u\n", (unsigned int) plugins[choosed_plugin].nb_iterations);
+   printf("\t* Benchmark time: %lus\n", (unsigned long)bench_time);
+
+   /** Scale the bench_time in cycles */
+   bench_time = bench_time * get_cpu_freq(); 
 
    /** Allocation stuff **/
    nb_bytes_processed = calloc(nthreads, sizeof(uint64_t));

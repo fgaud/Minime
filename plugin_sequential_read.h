@@ -19,8 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define PLUGIN_SEQUENTIAL_READ_H_
 
 #include <stdint.h>
+#include "machine.h"
 
 void bench_seq_init(uint64_t *memory_to_access, uint64_t memory_size);
-uint64_t bench_seq_read(uint64_t* memory_to_access, uint64_t memory_size, uint32_t nb_iterations, uint32_t thread_no);
+uint64_t bench_seq_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no);
 
 #endif /* PLUGIN_SEQUENTIAL_READ_H_ */

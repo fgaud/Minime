@@ -68,10 +68,12 @@ void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
    free(rand_array);
 }
 
-__attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_access, uint64_t memory_size, uint32_t nb_iterations, uint32_t thread_no) {
+__attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
 
-   int i;
-   for (i = 0; i < nb_iterations; i++) {
+   uint64_t start, current, nb_iterations = 0;
+   rdtscll(start);
+   
+   while(1) {
       uint64_t rest = memory_size / sizeof(*memory_to_access);
       uint64_t *addr = *((uint64_t**) memory_to_access);
 
@@ -146,6 +148,11 @@ __attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_ac
 
          rest -= 64;
       }
+
+      nb_iterations++;
+      rdtscll(current);
+      if(current - start >= time)
+         break;
    }
 
    return memory_size * nb_iterations;
