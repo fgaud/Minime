@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "memory_test.h"
 #include "plugin_throughput.h"
 
-extern int WriterSSE2 (void *ptr, unsigned long loops, unsigned long size, unsigned long value);
+extern long WriterSSE2 (void *ptr, unsigned long loops, unsigned long size, unsigned long value);
 
 #ifdef __x86_64__
 uint64_t bench_throughtput(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no){
