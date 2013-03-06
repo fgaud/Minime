@@ -248,7 +248,7 @@ void usage(char * app_name) {
    fprintf(stderr, "\t-f: run a spinloop on the first core of unused nodes\n");
    fprintf(stderr, "\t-l: memory size to benchmark (per thread)\n");
    fprintf(stderr, "\t-g: memory size to benchmark (total)\n");
-   fprintf(stderr, "\t-T: specify manually the benchmark duration (in ms)\n");
+   fprintf(stderr, "\t-T: specify manually the benchmark duration (in second)\n");
    fprintf(stderr, "\t-h: display usage\n");
    exit(EXIT_FAILURE);
 }
