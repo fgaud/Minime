@@ -406,20 +406,19 @@ int main(int argc, char **argv){
    int* nodes_assigned = calloc(nnodes, sizeof(int));
 
    /* 1. Create a thread for each core specified on the command line */
-   struct thread_data * pdata = malloc(sizeof(struct thread_data));
-   assert(pdata);
+   struct thread_data * pdata;
 
    int i = 0;
    for(i = 0; i < nthreads; i++) {
-      pdata->assigned_core = cores[i];
-      pdata->thread_no = i;
-      pdata->do_work = 1;
+     pdata = malloc(sizeof(struct thread_data));
+     assert(pdata);
+     pdata->assigned_core = cores[i];
+     pdata->thread_no = i;
+     pdata->do_work = 1;
 
-      nodes_assigned[numa_node_of_cpu(cores[i])] = 1;
+     nodes_assigned[numa_node_of_cpu(cores[i])] = 1;
 
-      assert(pthread_create(&threads[i], NULL, thread_loop, (void*)pdata) == 0);
-      pdata = malloc(sizeof(struct thread_data));
-      assert(pdata);
+     assert(pthread_create(&threads[i], NULL, thread_loop, (void*)pdata) == 0);
    }
 
    /* 2. Create a thread on each die which currently has no thread (idle threads: do_work == 0) */
@@ -437,11 +436,13 @@ int main(int argc, char **argv){
             }
          }
 
+	 pdata = malloc(sizeof(struct thread_data));
+	 assert(pdata);
+
          pdata->assigned_core = core;
          pdata->thread_no = fake_thread_no++;
          pdata->do_work = 0;
          assert(pthread_create(&threads[i], NULL, thread_loop, (void*)pdata) == 0);
-         pdata = malloc(sizeof(struct thread_data));
       }
    }
 
