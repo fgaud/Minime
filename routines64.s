@@ -44,7 +44,7 @@ WriterSSE2:
 	mov	r11, rdi
 	add	r11, rdx	; r11 points to end of area.
    xor   r13,r13
-	;movq	xmm0, rcx
+	;movq	xmm0, rcx    ;Why is this line disabled?
 
    push rax
    push rdx
@@ -67,6 +67,7 @@ w_inner2:
 	movntdq	[80+r10], xmm0
 	movntdq	[96+r10], xmm0
 	movntdq	[112+r10], xmm0
+	; In total, we move (8.128 bits =) 128 bytes per iteration
 
 	add	r10, 128
 	cmp	r10, r11

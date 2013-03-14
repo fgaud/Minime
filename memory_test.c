@@ -48,7 +48,7 @@ memory_bench_plugin_t plugins[] = {
 
 int choosed_plugin = -1;
 
-#define DEFAULT_BENCH_TIME (10LL) // In s
+#define DEFAULT_BENCH_TIME (10LL) // In seconds
 #define DEFAULT_MEMORY_BENCH_SIZE_TO_BENCH      (64*1024*1024) // In bytes
 
 unsigned int nthreads;
@@ -99,6 +99,9 @@ uint64_t get_cpu_freq(void) {
 }
 
 static volatile unsigned int rdv_value = 0;
+
+// Synchronization barrier/rendez-vous (with sleeping threads)
+
 static void rdv(unsigned long thread_no){
    pthread_mutex_lock(&mutex);
    rdv_value++;
@@ -112,6 +115,7 @@ static void rdv(unsigned long thread_no){
    pthread_mutex_unlock(&mutex);
 }
 
+/* Synchronization barrier/rendez-vous (with spinning threads) */
 static void spin_rdv(unsigned long thread_no) {
    static struct spin_barrier {
       volatile unsigned int n;
@@ -168,7 +172,7 @@ static void* thread_loop(void* pdata){
       plugins[choosed_plugin].init_fun(memory_to_access, memory_size);
    }
 
-   rdv(tn->thread_no);
+   rdv(tn->thread_no); // wait until all threads are ready
 
    gettimeofday(&start_time, NULL);
    rdtscll(start_time_cycles);
@@ -187,10 +191,12 @@ static void* thread_loop(void* pdata){
    rdtscll(stop_time_cycles);
 
    duration_cycles[tn->thread_no] = stop_time_cycles - start_time_cycles;
-   spin_rdv(tn->thread_no);
+   spin_rdv(tn->thread_no); // Wait until all threads are done running
+                            // the benchmark function
 
-
-   if(tn->thread_no == 0){
+   /* The master thread computes and displays global results */
+   if(tn->thread_no == 0) {
+    
       uint64_t sum_duration_cycles = 0;
       unsigned long global_length;
       struct timeval global_stop_time;
@@ -212,6 +218,7 @@ static void* thread_loop(void* pdata){
       printf("[GLOBAL] Average latency: %lu cycles\n", (long unsigned) (sum_duration_cycles / (total_read / sizeof(uint64_t))));
    }
 
+   /* Each thread waits for its turn in order to print its own results */
    while(rdv_value != tn->thread_no);
 
    if(tn->do_work) {
@@ -228,7 +235,7 @@ static void* thread_loop(void* pdata){
    }
 
 
-   // Last rendez-vous
+   /* Last rendez-vous */
    rdv(tn->thread_no);
 
    free(pdata);
@@ -246,11 +253,15 @@ void usage(char * app_name) {
    }
 
    fprintf(stderr, "\t-c: list of cores separated by commas\n");
+   /* 
+    * Note: 'local allocation' means that each thread accesses a buffer
+    * stored on its own memory node.
+    */
    fprintf(stderr, "\t-m: memory node to benchmark or -1 for local allocation (default = -1)\n");
    fprintf(stderr, "\t-f: run a spinloop on the first core of unused nodes\n");
    fprintf(stderr, "\t-l: memory size to benchmark (per thread)\n");
    fprintf(stderr, "\t-g: memory size to benchmark (total)\n");
-   fprintf(stderr, "\t-T: specify manually the benchmark duration (in second)\n");
+   fprintf(stderr, "\t-T: manually specify the benchmark duration (in seconds)\n");
    fprintf(stderr, "\t-h: display usage\n");
    exit(EXIT_FAILURE);
 }
@@ -275,8 +286,10 @@ static uint64_t parse_size (char * size) {
 
 int main(int argc, char **argv){
 
+   /* number of memory nodes on the machine */
    nnodes = numa_num_configured_nodes();
-   int ncores = get_nprocs();
+   /* number of cores on the machine */ 
+   int ncores = get_nprocs(); 
 
    int current_buf_size = ncores;
    int * cores = (int*) malloc(current_buf_size * sizeof(int));
@@ -389,7 +402,8 @@ int main(int argc, char **argv){
    assert(nb_bytes_processed);
    assert(threads);
 
-   /** Seting the memory policy **/
+   /** Seting the memory policy
+       (to make sure that the buffer is allocated on the chosen node) **/
    if(node_on_which_to_alloc == -1) {
       printf("Setting the local memory policy\n");
       assert(set_mempolicy(MPOL_PREFERRED, NULL, 0) == 0);
@@ -423,7 +437,8 @@ int main(int argc, char **argv){
      assert(pthread_create(&threads[i], NULL, thread_loop, (void*)pdata) == 0);
    }
 
-   /* 2. Create a thread on each die which currently has no thread (idle threads: do_work == 0) */
+   /* 2. Create a thread on each die which currently has no thread (idle threads: do_work == 0)
+         Note : This is required to avoid bugs with hardware counters */
    int fake_thread_no = nthreads;
    for (i = 0; fake_loop && i < nnodes; i++) {
       if (!nodes_assigned[i]) {

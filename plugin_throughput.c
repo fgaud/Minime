@@ -24,6 +24,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "memory_test.h"
 #include "plugin_throughput.h"
 
+/*
+ * In this benchmark plugin, each worker thread/core performs
+ * a sequence of (128-bit) memory writes instructions with
+ * a sequential write pattern
+ * (these writes bypass the cache and go directly to main memory)
+ */
+
 extern long WriterSSE2 (void *ptr, unsigned long loops, unsigned long size, unsigned long value);
 
 #ifdef __x86_64__
