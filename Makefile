@@ -17,7 +17,7 @@ ifneq ($(has_nasm),1)
 err +=  "2"
 $(warning nasm not found. Try doing sudo apt-get install nasm.)
 endif
-has_gsl := $(shell sh -c "(echo 'int main(void) { return 0; }') | $(CC) -x c - -lgsl "$(QUIET_STDERR)" && rm a.out && echo y")
+has_gsl := $(shell sh -c "(echo 'int main(void) { return 0; }') | $(CC) -x c - -lgsl -lgslcblas -lm "$(QUIET_STDERR)" && rm a.out && echo y")
 ifneq ($(has_gsl),y)
 err +=  "2"
 $(warning libgsl not found. Try doing sudo apt-get install libgsl0-dev)

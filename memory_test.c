@@ -64,8 +64,6 @@ uint64_t* duration_cycles;        /* Time needed to process data in cycles, one 
 
 pthread_mutex_t mutex;
 pthread_cond_t go_to_work;
-volatile unsigned int rdv_value = 0;
-volatile unsigned int spin_rdv_value = 0;
 
 uint64_t memory_size = 0;
 
@@ -103,6 +101,7 @@ uint64_t get_cpu_freq(void) {
 }
 
 static void rdv(unsigned long thread_no){
+   static volatile unsigned int rdv_value = 0;
    pthread_mutex_lock(&mutex);
    rdv_value++;
    if(rdv_value < nthreads){
@@ -116,16 +115,19 @@ static void rdv(unsigned long thread_no){
 }
 
 static void spin_rdv(unsigned long thread_no) {
-   // Spin-rendez-vous because if a core sleeps, PAPI discards the new counters values
-   pthread_mutex_lock(&mutex);
-   spin_rdv_value++;
-   pthread_mutex_unlock(&mutex);
-   while(spin_rdv_value < nthreads); //Spin
-   pthread_mutex_lock(&mutex);
-   spin_rdv_value++;
-   if(spin_rdv_value == 2*nthreads)
-      spin_rdv_value = 0;
-   pthread_mutex_unlock(&mutex);
+   static struct spin_barrier {
+      volatile unsigned int n;
+      volatile unsigned int current;
+   } barrier;
+
+   int m = barrier.current;
+   int n = __sync_add_and_fetch(&barrier.n, 1);
+   if(n != nthreads) {
+      while(barrier.current == m);
+   } else {
+      barrier.n = 0;
+      barrier.current++;
+   }
 }
 
 struct thread_data {
@@ -253,7 +255,7 @@ static void* thread_loop(void* pdata){
       printf("[GLOBAL] Average latency: %lu cycles\n", (long unsigned) (sum_duration_cycles / (total_read / sizeof(uint64_t))));
    }
 
-   while(rdv_value != tn->thread_no);
+   rdv(tn->thread_no);
 
    if(tn->do_work) {
       unsigned long length = time_diff(&start_time, &stop_time);
