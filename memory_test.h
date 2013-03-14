@@ -30,8 +30,25 @@ typedef uint64_t (*bench_memory_fun_t)(uint64_t*, uint64_t, uint64_t, uint32_t);
 typedef void (*init_memory_fun_t)(uint64_t*, uint64_t);
 
 typedef struct {
-      const char * name;
+      const char * name; /* plugin name */
+      
+      /*
+       * Initialization function (called by each worker thread)
+       * Args:
+       * - buffer
+       * - buffer size
+       */
       init_memory_fun_t init_fun;
+      
+      /*
+       * Benchmarking function (called by each worker thread)
+       * Args:
+       * - buffer
+       * - buffer size
+       * - time (duration of the benchmark in cycles)
+       * - thread number/id
+       * Return value: number of accessed bytes
+       */    
       bench_memory_fun_t bench_fun;
 } memory_bench_plugin_t;
 

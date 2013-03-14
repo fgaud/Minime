@@ -24,6 +24,22 @@ Original source code is available here: http://pdos.csail.mit.edu/corey/
 #include <stdlib.h>
 #include <assert.h>
 
+/*
+ * In this benchmark plugin, each worker thread/core performs
+ * a sequence of (64-bit) memory load instructions on non-contiguous
+ * memory locations inside a per-thread buffer.
+ * For each memory load instruction, the address from which to read is
+ * determined by the value read via the previous instruction (pointer chasing).
+ * While this is a latency-oriented benchmark, the results are reported
+ * in terms of throughput.
+ */
+
+/* 
+ * Set this to 1 in order to replace the random read pattern with
+ * a sequential one.
+ * Useful to highlight the impact of cache locality and
+ * cache prefetching effects
+ */
 #define RANDOM_BECOMES_SEQUENTIAL 0
 
 struct ij {
@@ -38,6 +54,15 @@ static int compar(const void* a1, const void* a2) {
    return a->j - b->j;
 }
 
+/*
+ * Init phase:
+ * Fill in the array to prepare the pointer chasing.
+ * Make sure that each slot of the array will be visited exactly once per
+ * loop iteration.
+ *
+ * Note: Depending on the buffer size, the written values may fit in
+ * cache or not.
+ */
 void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
    int i;
    unsigned int seed = 1;
@@ -68,6 +93,10 @@ void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
    free(rand_array);
 }
 
+/* 
+ * The "O0" attribute is required to make sure that the compiler does 
+ * not discard the body of the function (that has no side effect).
+ */
 __attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
 
    uint64_t start, current, nb_iterations = 0;
@@ -77,6 +106,10 @@ __attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_ac
       uint64_t rest = memory_size / sizeof(*memory_to_access);
       uint64_t *addr = *((uint64_t**) memory_to_access);
 
+      /*
+       * The loop is partially unrolled in order to increase
+       * the ratio of load instructions vs branch instructions
+       */
       while (rest) {
          addr = (uint64_t *) *addr;
          addr = (uint64_t *) *addr;

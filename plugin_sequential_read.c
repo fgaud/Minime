@@ -18,6 +18,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "plugin_sequential_read.h"
 #include <stdlib.h>
 
+/*
+ * In this benchmark plugin, each worker thread/core performs
+ * a sequence of (64-bit) memory load instructions on contiguous
+ * memory locations inside a per-thread buffer
+ */
+
+/*
+ * Init phase:
+ * Depending on the buffer size, the written values may fit in cache or not.
+ */
 void bench_seq_init(uint64_t *memory_to_access, uint64_t memory_size) {
    int i;
    unsigned int seed = 0;
@@ -26,12 +36,20 @@ void bench_seq_init(uint64_t *memory_to_access, uint64_t memory_size) {
    }
 }
 
+/* 
+ * The "O0" attribute is required to make sure that the compiler does 
+ * not discard the body of the function (that has no side effect).
+ */
 __attribute__((optimize("O0")))   uint64_t bench_seq_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
    int j, fake = 0;
    uint64_t start, current, nb_iterations = 0;
    rdtscll(start);
 
    while(1) {
+      /*
+       * The loop is partially unrolled in order to increase
+       * the ratio of load instructions vs branch instructions
+       */
       for (j = 0; j < (memory_size / sizeof(*memory_to_access)); j += 8) {
          fake += memory_to_access[j];
          fake += memory_to_access[j + 1];
