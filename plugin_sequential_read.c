@@ -15,30 +15,28 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "plugin_sequential_read.h"
-#include <stdlib.h>
-
 /*
  * In this benchmark plugin, each worker thread/core performs
  * a sequence of (64-bit) memory load instructions on contiguous
  * memory locations inside a per-thread buffer
  */
 
+
+#include "plugin_sequential_read.h"
+#include <stdlib.h>
+#include <string.h>
+
 /*
  * Init phase:
- * Depending on the buffer size, the written values may fit in cache or not.
+ * Memset the array so that it is fully paged in memory before the bench
  */
 void bench_seq_init(uint64_t *memory_to_access, uint64_t memory_size) {
-   int i;
-   unsigned int seed = 0;
-   for (i = 0; i < memory_size / sizeof(*memory_to_access); i++) {
-      memory_to_access[i] = rand_r(&seed);
-   }
+   memset(memory_to_access, 0, memory_size);
 }
 
 /* 
- * The "O0" attribute is required to make sure that the compiler does 
- * not discard the body of the function (that has no side effect).
+ * Benchmark
+ * The "O0" attribute is required to make sure that the compiler does not optimize the code
  */
 __attribute__((optimize("O0")))   uint64_t bench_seq_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
    int j, fake = 0;

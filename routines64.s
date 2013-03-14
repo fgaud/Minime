@@ -37,14 +37,13 @@ global	WriterSSE2
 ; Params:	rdi = ptr to memory area
 ; 		rsi = loops
 ; 		rdx = length in bytes
-; 		rcx = quad to write
+; 		rcx = quad to write (unused)
 ;------------------------------------------------------------------------------
 
 WriterSSE2:
 	mov	r11, rdi
 	add	r11, rdx	; r11 points to end of area.
    xor   r13,r13
-	;movq	xmm0, rcx    ;Why is this line disabled?
 
    push rax
    push rdx

@@ -20,10 +20,6 @@ This plugin is inspired by the Corey benchmark.
 Original source code is available here: http://pdos.csail.mit.edu/corey/
 */
 
-#include "plugin_random_read.h"
-#include <stdlib.h>
-#include <assert.h>
-
 /*
  * In this benchmark plugin, each worker thread/core performs
  * a sequence of (64-bit) memory load instructions on non-contiguous
@@ -33,6 +29,11 @@ Original source code is available here: http://pdos.csail.mit.edu/corey/
  * While this is a latency-oriented benchmark, the results are reported
  * in terms of throughput.
  */
+
+#include "plugin_random_read.h"
+#include <stdlib.h>
+#include <assert.h>
+
 
 /* 
  * Set this to 1 in order to replace the random read pattern with
@@ -59,9 +60,6 @@ static int compar(const void* a1, const void* a2) {
  * Fill in the array to prepare the pointer chasing.
  * Make sure that each slot of the array will be visited exactly once per
  * loop iteration.
- *
- * Note: Depending on the buffer size, the written values may fit in
- * cache or not.
  */
 void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
    int i;
@@ -84,7 +82,6 @@ void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
 
    uint64_t *addr = (uint64_t*) memory_to_access;
    for (i = 0; i < array_size - 1; i++) {
-      //* addr = (uint64_t) &buf[rand_array[i + 1].i * stride];
       *addr = (uint64_t) &memory_to_access[rand_array[i + 1].i];
       addr = (uint64_t*) *addr;
    }
@@ -94,8 +91,8 @@ void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
 }
 
 /* 
- * The "O0" attribute is required to make sure that the compiler does 
- * not discard the body of the function (that has no side effect).
+ * Benchmark
+ * The "O0" attribute is required to make sure that the compiler does not optimize the code
  */
 __attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
 
