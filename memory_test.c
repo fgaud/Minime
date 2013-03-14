@@ -98,8 +98,8 @@ uint64_t get_cpu_freq(void) {
    return freq;
 }
 
+static volatile unsigned int rdv_value = 0;
 static void rdv(unsigned long thread_no){
-   static volatile unsigned int rdv_value = 0;
    pthread_mutex_lock(&mutex);
    rdv_value++;
    if(rdv_value < nthreads){
@@ -212,7 +212,7 @@ static void* thread_loop(void* pdata){
       printf("[GLOBAL] Average latency: %lu cycles\n", (long unsigned) (sum_duration_cycles / (total_read / sizeof(uint64_t))));
    }
 
-   rdv(tn->thread_no);
+   while(rdv_value != tn->thread_no);
 
    if(tn->do_work) {
       unsigned long length = time_diff(&start_time, &stop_time);
