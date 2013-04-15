@@ -243,7 +243,7 @@ void usage(char * app_name) {
       printf("\t\t%d - %s\n", i, plugins[i].name);
    }
 
-   fprintf(stderr, "\t-c: list of cores separated by commas\n");
+   fprintf(stderr, "\t-c: list of cores separated by commas or dashes (e.g, -c 0-7,9,15-20)\n");
    fprintf(stderr, "\t-m: memory node to benchmark or -1 for local allocation (default = -1)\n");
    fprintf(stderr, "\t-f: run a spinloop on the first core of unused nodes\n");
    fprintf(stderr, "\t-l: memory size to benchmark (per thread)\n");
@@ -289,25 +289,61 @@ int main(int argc, char **argv){
    uint64_t per_thread_memory_to_alloc = 0;
 
    while ((c = getopt(argc, argv, "fhc:m:t:g:l:T:")) != -1) {
-      char delims[] = ",";
       char * result = NULL;
+      char * end_str;
 
       switch (c) {
          case 'c':
-            result = strtok( optarg, delims );
+            result = strtok_r( optarg, "," , &end_str);
             while( result != NULL ) {
-                if(++nthreads > current_buf_size) {
-                   current_buf_size += ncores;
-                   cores = realloc (cores, current_buf_size * sizeof(int));
-                   assert(cores);
-                }
-                cores[nthreads-1] = atoi(result);
-                if(cores[nthreads-1] < 0 || cores[nthreads-1] >= ncores){
-                   fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d", cores[nthreads-1], ncores-1);
-                   exit(EXIT_FAILURE);
-                }
+               char * end_str2;
+               int prev = -1;
 
-                result = strtok( NULL, delims );
+               char * result2 = strtok_r(result, "-", &end_str2);
+               while(result2 != NULL) {
+                  if(prev < 0) {
+                     prev = atoi(result2);
+                     /* Add to cores array */
+                     if(++nthreads > current_buf_size) {
+                        current_buf_size += ncores;
+                        cores = realloc (cores, current_buf_size * sizeof(int));
+                        assert(cores);
+                     }
+                     cores[nthreads-1] = prev;
+                     if(cores[nthreads-1] < 0 || cores[nthreads-1] >= ncores){
+                        fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d", cores[nthreads-1], ncores-1);
+                        exit(EXIT_FAILURE);
+                     }
+                  }
+                  else {
+                     int i;
+                     int core = atoi(result2);
+
+                     if(prev > core) {
+                        fprintf(stderr, "%d-%d is not a valid core range\n", prev, core);
+                        exit(EXIT_FAILURE);
+                     }
+                     for(i = prev + 1; i <= core; i++) {
+                        /* Add to cores array */
+                        if(++nthreads > current_buf_size) {
+                           current_buf_size += ncores;
+                           cores = realloc (cores, current_buf_size * sizeof(int));
+                           assert(cores);
+                        }
+                        cores[nthreads-1] = i;
+                        if(cores[nthreads-1] < 0 || cores[nthreads-1] >= ncores){
+                           fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d", cores[nthreads-1], ncores-1);
+                           exit(EXIT_FAILURE);
+                        }
+                     }
+                     prev = core;
+                  }
+                  
+                  result2 = strtok_r(NULL, "-", &end_str2);
+               }
+
+
+               result = strtok_r(NULL, "," , &end_str);
             }
             break;
          case 'm':
