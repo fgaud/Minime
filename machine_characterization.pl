@@ -6,10 +6,11 @@ use warnings;
 use Data::Dumper;
 use File::Temp qw/ tempfile /;
 use IPC::Run qw( run );
+use Sys::Hostname;
 
 ## Config
 my $duration = 30; ## in seconds
-my $output = "machine_characterization";
+my $output = hostname."_characterization";
 
 sub run_cmd {
    my $cmd = $_[0];
