@@ -159,8 +159,11 @@ static void* thread_loop(void* pdata){
    printf("Assigning thread %lu (tid = %d) to core %lu\n", tn->thread_no, tid, tn->assigned_core);
    set_affinity(tid, tn->assigned_core);
 
-   uint64_t* memory_to_access = (uint64_t*) malloc(memory_size);
-   assert(memory_to_access);
+   /** Makes sure that arrays are on different pages to prevent possible page sharing
+       Only usefull for small arrays
+   **/
+   uint64_t* memory_to_access;
+   assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
 
    if(plugins[choosed_plugin].init_fun) {
       plugins[choosed_plugin].init_fun(memory_to_access, memory_size);
