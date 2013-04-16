@@ -37,6 +37,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <ctype.h>
 
+#include <sys/mman.h>
+
 #include "machine.h"
 #include "memory_test.h"
 
@@ -148,6 +150,26 @@ void set_affinity(int tid, int core_id) {
    }
 }
 
+size_t get_hugepage_size() {
+   const char *key = "Hugepagesize:";
+
+   FILE *f = fopen("/proc/meminfo", "r");
+   assert(f);
+
+   char *linep = NULL;
+   size_t n = 0;
+   size_t size = 0;
+   while (getline(&linep, &n, f) > 0) {
+      if (strstr(linep, key) != linep)
+         continue;
+      size = atol(linep + strlen(key)) * 1024;
+      break;
+   }
+   fclose(f);
+   assert(size);
+   return size;
+}
+
 static void* thread_loop(void* pdata){
    struct thread_data *tn = pdata;
    
@@ -157,13 +179,31 @@ static void* thread_loop(void* pdata){
    /** Set thread affinity **/
    int tid = gettid();
    printf("Assigning thread %lu (tid = %d) to core %lu\n", tn->thread_no, tid, tn->assigned_core);
+
    set_affinity(tid, tn->assigned_core);
 
-   /** Makes sure that arrays are on different pages to prevent possible page sharing
-       Only usefull for small arrays
+   /**
+      Makes sure that arrays are on different pages to prevent possible page sharing. Only usefull for small arrays.
+      Use large pages if we can to reduce the TLB impact on performance (mostly useful when measuring latency)
    **/
    uint64_t* memory_to_access;
+
+#ifdef MADV_HUGEPAGE
+   size_t hpage_size = get_hugepage_size();
+   
+   if(!hpage_size || hpage_size < 0) {
+      fprintf(stderr, "(thread %lu) Cannot determine huge page size. Falling back to regular pages\n", tn->thread_no);
+      assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
+   }
+   else {
+      assert(posix_memalign((void**)&memory_to_access, get_hugepage_size(), memory_size) == 0);
+      if(madvise(memory_to_access, memory_size, MADV_HUGEPAGE)) {
+         fprintf(stderr, "(thread %lu) Cannot use large pages.\n", tn->thread_no);
+      }
+   }
+#else
    assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
+#endif
 
    if(plugins[choosed_plugin].init_fun) {
       plugins[choosed_plugin].init_fun(memory_to_access, memory_size);
