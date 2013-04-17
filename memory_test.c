@@ -67,6 +67,12 @@ pthread_cond_t go_to_work;
 
 uint64_t memory_size = 0;
 
+#ifdef MADV_HUGEPAGE
+static unsigned use_large_pages = 1;
+#else
+static unsigned use_large_pages = 0;
+#endif
+
 unsigned long time_diff(struct timeval* start, struct timeval* stop){
    unsigned long sec_res = stop->tv_sec - start->tv_sec;
    unsigned long usec_res = stop->tv_usec - start->tv_usec;
@@ -192,22 +198,23 @@ static void* thread_loop(void* pdata){
    **/
    uint64_t* memory_to_access;
 
-#ifdef MADV_HUGEPAGE
-   size_t hpage_size = get_hugepage_size();
+   if(use_large_pages) {
+      size_t hpage_size = get_hugepage_size();
    
-   if(!hpage_size || hpage_size < 0) {
-      fprintf(stderr, "(thread %lu) Cannot determine huge page size. Falling back to regular pages\n", tn->thread_no);
-      assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
-   }
-   else {
-      assert(posix_memalign((void**)&memory_to_access, get_hugepage_size(), memory_size) == 0);
-      if(madvise(memory_to_access, memory_size, MADV_HUGEPAGE)) {
-         fprintf(stderr, "(thread %lu) Cannot use large pages.\n", tn->thread_no);
+      if(!hpage_size || hpage_size < 0) {
+         fprintf(stderr, "(thread %lu) Cannot determine huge page size. Falling back to regular pages\n", tn->thread_no);
+         assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
+      }
+      else {
+         assert(posix_memalign((void**)&memory_to_access, get_hugepage_size(), memory_size) == 0);
+         if(madvise(memory_to_access, memory_size, MADV_HUGEPAGE)) {
+            fprintf(stderr, "(thread %lu) Cannot use large pages.\n", tn->thread_no);
+         }
       }
    }
-#else
-   assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
-#endif
+   else {
+      assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
+   }
 
    if(plugins[choosed_plugin].init_fun) {
       plugins[choosed_plugin].init_fun(memory_to_access, memory_size);
@@ -298,6 +305,7 @@ void usage(char * app_name) {
    fprintf(stderr, "\t-l: memory size to benchmark (per thread)\n");
    fprintf(stderr, "\t-g: memory size to benchmark (total)\n");
    fprintf(stderr, "\t-T: manually specify the benchmark duration (in seconds)\n");
+   fprintf(stderr, "\t-s: force using small pages\n");
    fprintf(stderr, "\t-h: display usage\n");
    exit(EXIT_FAILURE);
 }
@@ -417,6 +425,9 @@ int main(int argc, char **argv){
             break;
          case 'f':
             fake_loop = 1;
+            break;
+         case 's':
+            use_large_pages = 0;
             break;
          case 'h':
             usage(argv[0]);
