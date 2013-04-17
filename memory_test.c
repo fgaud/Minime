@@ -115,6 +115,7 @@ static void rdv(unsigned long thread_no){
    pthread_mutex_unlock(&mutex);
 }
 
+/* Synchronization barrier/rendez-vous (with spinning threads) */
 static void spin_rdv(unsigned long thread_no) {
    static struct spin_barrier {
       volatile unsigned int n;
