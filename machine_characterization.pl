@@ -99,4 +99,18 @@ for(my $n_src = 0; $n_src < scalar(keys %cpumap); $n_src++) {
    }
 }
 
+## Third let's evaluate the TLB miss latency
+my $cmd_notlb = "./memory_test -t 2 -c 0 -m -1 -T $duration";
+my $cmd_tlb = "./memory_test -t 2 -c 0 -m -1 -T $duration -s";
+
+my $l = "Evaluating TLB miss latency of core 0: ";
+print $l;
+
+my @res_notlb = run_cmd("$cmd_notlb");
+my @res_tlb = run_cmd("$cmd_tlb");
+
+my $el = ($res_tlb[1] - $res_notlb[1])." cycles\n";
+print $el;
+print FILE $l.$el;
+
 close FILE;

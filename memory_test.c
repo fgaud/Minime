@@ -343,7 +343,7 @@ int main(int argc, char **argv){
    uint64_t total_memory_to_alloc = 0;
    uint64_t per_thread_memory_to_alloc = 0;
 
-   while ((c = getopt(argc, argv, "fhc:m:t:g:l:T:")) != -1) {
+   while ((c = getopt(argc, argv, "fhsc:m:t:g:l:T:")) != -1) {
       char * result = NULL;
       char * end_str;
 
