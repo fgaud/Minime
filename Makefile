@@ -22,6 +22,11 @@ ifneq ($(has_gsl),y)
 err +=  "2"
 $(warning libgsl not found. Try doing sudo apt-get install libgsl0-dev)
 endif
+has_numa := $(shell sh -c "(echo 'int main(void) { return 0; }') | $(CC) -x c - -lnuma && rm a.out && echo y")
+ifneq ($(has_numa),y)
+err +=  "2"
+$(warning libnuma not found. Try doing sudo apt-get install libnuma-dev)
+endif
 ifneq ($(err),"")
 $(error Exiting from previous errors)
 endif
