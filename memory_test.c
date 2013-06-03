@@ -366,7 +366,7 @@ int main(int argc, char **argv){
                      }
                      cores[nthreads-1] = prev;
                      if(cores[nthreads-1] < 0 || cores[nthreads-1] >= ncores){
-                        fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d", cores[nthreads-1], ncores-1);
+                        fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d\n", cores[nthreads-1], ncores-1);
                         exit(EXIT_FAILURE);
                      }
                   }
@@ -387,7 +387,7 @@ int main(int argc, char **argv){
                         }
                         cores[nthreads-1] = i;
                         if(cores[nthreads-1] < 0 || cores[nthreads-1] >= ncores){
-                           fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d", cores[nthreads-1], ncores-1);
+                           fprintf(stderr, "%d is not a valid core number. Must be comprised between 0 and %d\n", cores[nthreads-1], ncores-1);
                            exit(EXIT_FAILURE);
                         }
                      }
