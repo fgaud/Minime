@@ -67,11 +67,7 @@ pthread_cond_t go_to_work;
 
 uint64_t memory_size = 0;
 
-#ifdef MADV_HUGEPAGE
 static unsigned use_large_pages = 1;
-#else
-static unsigned use_large_pages = 0;
-#endif
 
 unsigned long time_diff(struct timeval* start, struct timeval* stop){
    unsigned long sec_res = stop->tv_sec - start->tv_sec;
@@ -198,6 +194,7 @@ static void* thread_loop(void* pdata){
    **/
    uint64_t* memory_to_access;
 
+#ifdef MADV_HUGEPAGE
    if(use_large_pages) {
       size_t hpage_size = get_hugepage_size();
    
@@ -215,6 +212,10 @@ static void* thread_loop(void* pdata){
    else {
       assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
    }
+#else
+   assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
+#endif
+
 
    if(plugins[choosed_plugin].init_fun) {
       plugins[choosed_plugin].init_fun(memory_to_access, memory_size);
