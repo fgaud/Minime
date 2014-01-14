@@ -1,5 +1,4 @@
-CC = gcc
-CFLAGS = -g -Wall -Werror -O3
+CFLAGS = -g -Wall -Werror -O0
 LDLIBS = -lpthread -lgsl -lgslcblas -lnuma
 QUIET_STDERR = " >/dev/null 2>&1"
 
@@ -32,7 +31,7 @@ $(error Exiting from previous errors)
 endif
 
 makefile.dep : *.[Cch]
-	    for i in *.[Cc]; do gcc -MM "$${i}"; done > $@
+	    for i in *.[Cc]; do ${CC} -MM "$${i}"; done > $@
 
 -include makefile.dep
 

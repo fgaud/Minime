@@ -198,7 +198,7 @@ static void* thread_loop(void* pdata){
    if(use_large_pages) {
       size_t hpage_size = get_hugepage_size();
    
-      if(!hpage_size || hpage_size < 0) {
+      if(!hpage_size) {
          fprintf(stderr, "(thread %lu) Cannot determine huge page size. Falling back to regular pages\n", tn->thread_no);
          assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
       }

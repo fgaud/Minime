@@ -94,7 +94,7 @@ void bench_rand_read_init(uint64_t *memory_to_access, uint64_t memory_size) {
  * Benchmark
  * The "O0" attribute is required to make sure that the compiler does not optimize the code
  */
-__attribute__((optimize("O0")))  uint64_t bench_rand_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
+uint64_t bench_rand_read(uint64_t* memory_to_access, uint64_t memory_size, uint64_t time, uint32_t thread_no) {
 
    uint64_t start, current, nb_iterations = 0;
    rdtscll(start);
