@@ -346,7 +346,7 @@ int main(int argc, char **argv){
 
    while ((c = getopt(argc, argv, "fhsc:m:t:g:l:T:")) != -1) {
       char * result = NULL;
-      char * end_str;
+      char * end_str = NULL;
 
       switch (c) {
          case 'c':
