@@ -41,17 +41,19 @@ global	WriterSSE2
 ;------------------------------------------------------------------------------
 
 WriterSSE2:
+   ;push rax
+   push rdx
+   push r12
+   push r13
+
 	mov	r11, rdi
 	add	r11, rdx	; r11 points to end of area.
-   xor   r13,r13
+   xor   r13,r13  ; r13 = #iterations done
 
-   push rax
-   push rdx
-
-   rdtsc  
+   rdtsc
    shl rdx, 32
    or rdx, rax
-   mov r12, rdx
+   mov r12, rdx   ; r12 = rdtsc
 
 w_outer2:
 	mov	r10, rdi
@@ -85,8 +87,10 @@ w_inner2:
 	;dec	rsi
 	;jnz	w_outer2
 
-   pop rdx
-   pop rax
-
    mov rax, r13
+   pop r13
+   pop r12
+   pop rdx
+   ;pop rax
+
 	ret
