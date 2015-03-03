@@ -29,7 +29,7 @@ global	WriterSSE2
 ; Unix ABI says integer param are put in these registers in this order:
 ;	rdi, rsi, rdx, rcx, r8, r9
 
-	section .text
+section .text
 
 ;------------------------------------------------------------------------------
 ; Name:		WriterSSE2
@@ -41,13 +41,12 @@ global	WriterSSE2
 ;------------------------------------------------------------------------------
 
 WriterSSE2:
-   ;push rax
    push rdx
    push r12
    push r13
 
-	mov	r11, rdi
-	add	r11, rdx	; r11 points to end of area.
+   mov	r11, rdi
+   add	r11, rdx	; r11 points to end of area.
    xor   r13,r13  ; r13 = #iterations done
 
    rdtsc
@@ -56,23 +55,23 @@ WriterSSE2:
    mov r12, rdx   ; r12 = rdtsc
 
 w_outer2:
-	mov	r10, rdi
+   mov	r10, rdi
 
 w_inner2:
-	; Move a quadriword (128 bit) directly to memory without cache pollution
-	movntdq	[r10], xmm0
-	movntdq	[16+r10], xmm0
-	movntdq	[32+r10], xmm0
-	movntdq	[48+r10], xmm0
-	movntdq	[64+r10], xmm0
-	movntdq	[80+r10], xmm0
-	movntdq	[96+r10], xmm0
-	movntdq	[112+r10], xmm0
-	; In total, we move (8.128 bits =) 128 bytes per iteration
+   ; Move a quadriword (128 bit) directly to memory without cache pollution
+   movntdq	[r10], xmm0
+   movntdq	[16+r10], xmm0
+   movntdq	[32+r10], xmm0
+   movntdq	[48+r10], xmm0
+   movntdq	[64+r10], xmm0
+   movntdq	[80+r10], xmm0
+   movntdq	[96+r10], xmm0
+   movntdq	[112+r10], xmm0
+   ; In total, we move (8.128 bits =) 128 bytes per iteration
 
-	add	r10, 128
-	cmp	r10, r11
-	jb	w_inner2
+   add	r10, 128
+   cmp	r10, r11
+   jb	w_inner2
 
    inc r13
 
@@ -84,13 +83,12 @@ w_inner2:
    cmp rdx, rsi
    jb w_outer2
 
-	;dec	rsi
-	;jnz	w_outer2
+   ;dec	rsi
+   ;jnz	w_outer2
 
    mov rax, r13
    pop r13
    pop r12
    pop rdx
-   ;pop rax
 
-	ret
+   ret
