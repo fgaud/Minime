@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2012  
+Copyright (C) 2012
 Fabien Gaud <fgaud@sfu.ca>, Baptiste Lepers <baptiste.lepers@inria.fr>
 
 This program is free software: you can redistribute it and/or modify
@@ -76,7 +76,7 @@ unsigned long time_diff(struct timeval* start, struct timeval* stop){
    return 1000000*sec_res + usec_res;
 }
 
-uint64_t get_cpu_freq(void) {                                                                                                                                                  
+uint64_t get_cpu_freq(void) {
    FILE *fd;
    uint64_t freq = 0;
    float freqf = 0;
@@ -88,15 +88,15 @@ uint64_t get_cpu_freq(void) {
       fprintf(stderr, "failed to get cpu frequency\n");
       perror(NULL);
       return freq;
-   }   
+   }
 
    while (getline(&line, &len, fd) != EOF) {
       if (sscanf(line, "cpu MHz\t: %f", &freqf) == 1) {
          freqf = freqf * 1000000UL;
          freq = (uint64_t) freqf;
          break;
-      }   
-   }   
+      }
+   }
 
    fclose(fd);
    return freq;
@@ -140,7 +140,7 @@ struct thread_data {
    int do_work;
 };
 
-static pid_t gettid(void) {
+pid_t gettid(void) {
    return syscall(__NR_gettid);
 }
 
@@ -178,7 +178,7 @@ size_t get_hugepage_size() {
 
 static void* thread_loop(void* pdata){
    struct thread_data *tn = pdata;
-   
+
    struct timeval stop_time, start_time;
    uint64_t start_time_cycles, stop_time_cycles;
 
@@ -197,7 +197,7 @@ static void* thread_loop(void* pdata){
 #ifdef MADV_HUGEPAGE
    if(use_large_pages) {
       size_t hpage_size = get_hugepage_size();
-   
+
       if(!hpage_size) {
          fprintf(stderr, "(thread %lu) Cannot determine huge page size. Falling back to regular pages\n", tn->thread_no);
          assert(posix_memalign((void**)&memory_to_access, sysconf(_SC_PAGESIZE), memory_size) == 0);
@@ -245,7 +245,7 @@ static void* thread_loop(void* pdata){
 
    /* The master thread computes and displays global results */
    if(tn->thread_no == 0) {
-    
+
       uint64_t sum_duration_cycles = 0;
       unsigned long global_length;
       struct timeval global_stop_time;
@@ -273,8 +273,8 @@ static void* thread_loop(void* pdata){
    if(tn->do_work) {
       unsigned long length = time_diff(&start_time, &stop_time);
 
-      printf("\t[CORE%lu] throughput: %.2f MB/s, average latency: %ld cycles, during %.2fs\n", 
-               tn->assigned_core, 
+      printf("\t[CORE%lu] throughput: %.2f MB/s, average latency: %ld cycles, during %.2fs\n",
+               tn->assigned_core,
                ((double) nb_bytes_processed[tn->thread_no]/1024./1024.)/ ((double) length/1000000.),
                (unsigned long) (duration_cycles[tn->thread_no]) / (nb_bytes_processed[tn->thread_no] / sizeof(uint64_t)),
                (((double) length)/1000000.)
@@ -329,7 +329,7 @@ static uint64_t parse_size (char * size) {
 }
 
 int main(int argc, char **argv){
-   int ncores = get_nprocs(); 
+   int ncores = get_nprocs();
    nnodes = numa_num_configured_nodes();
 
    int current_buf_size = ncores;
@@ -394,7 +394,7 @@ int main(int argc, char **argv){
                      }
                      prev = core;
                   }
-                  
+
                   result2 = strtok_r(NULL, "-", &end_str2);
                }
 
@@ -473,7 +473,7 @@ int main(int argc, char **argv){
    printf("\t* Benchmark time: %lus\n", (unsigned long)bench_time);
 
    /** Scale the bench_time in cycles */
-   bench_time = bench_time * get_cpu_freq(); 
+   bench_time = bench_time * get_cpu_freq();
 
    /** Allocation stuff **/
    nb_bytes_processed = calloc(nthreads, sizeof(uint64_t));
